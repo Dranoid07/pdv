@@ -233,6 +233,7 @@ class NuevaCompraPopup(Popup):
 
 
 class VentasWindow(BoxLayout):
+	usuario=None
 	def __init__(self, actualizar_productos_callback, **kwargs):
 		super().__init__(**kwargs)
 		self.total=0.0
@@ -301,22 +302,25 @@ class VentasWindow(BoxLayout):
 		self.ids.buscar_codigo.disabled=True
 		self.ids.buscar_nombre.disabled=True
 		self.ids.pagar.disabled=True
+
 		connection = QueriesSQLite.create_connection("pdvDB.sqlite")
-		actualizar="""
-		UPDATE
-			productos
-		SET
-			cantidad=?
-		WHERE
-			codigo=?
-		"""
+		actualizar=""" UPDATE productos SET cantidad=? WHERE codigo=? """
 		actualizar_admin=[]
+
+		venta = """ INSERT INTO ventas (total, fecha, username) VALUES (?, ?, ?) """
+		venta_tuple = (self.total, self.ahora, self.usuario['username'])
+		venta_id = QueriesSQLite.execute_query(connection, venta, venta_tuple)
+		ventas_detalle = """ INSERT INTO ventas_detalle(id_venta, precio, producto, cantidad) VALUES (?, ?, ?, ?) """
+
 		for producto in self.ids.rvs.data:
 			nueva_cantidad=0
 			if producto['cantidad_inventario']-producto['cantidad_carrito']>0:
 				nueva_cantidad=producto['cantidad_inventario']-producto['cantidad_carrito']
 			producto_tuple=(nueva_cantidad, producto['codigo'])
+			ventas_detalle_tuple= (venta_id, producto['precio'], producto['codigo'], producto['cantidad_carrito'])
 			actualizar_admin.append({'codigo': producto['codigo'], 'cantidad': nueva_cantidad})
+
+			QueriesSQLite.execute_query(connection, ventas_detalle, ventas_detalle_tuple)
 			QueriesSQLite.execute_query(connection, actualizar, producto_tuple)
 		self.actualizar_productos(actualizar_admin)
 
@@ -355,6 +359,7 @@ class VentasWindow(BoxLayout):
 
 	def poner_usuario(self, usuario):
 		self.ids.bienvenido_label.text='Bienvenido '+usuario['nombre']
+		self.usuario=usuario
 		if usuario['tipo']=='trabajador':
 			self.ids.admin_boton.disabled=True
 			self.ids.admin_boton.text=''

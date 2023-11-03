@@ -12,52 +12,109 @@ class QueriesSQLite:
 
         return connection
 
+    # added return
     def execute_query(connection, query, data_tuple):
         cursor = connection.cursor()
         try:
             cursor.execute(query, data_tuple)
             connection.commit()
             print("Query executed successfully")
+            return cursor.lastrowid
         except Error as e:
             print(f"The error '{e}' occurred")
 
-    def execute_read_query(connection, query):
+    # added data_tuple
+    def execute_read_query(connection, query, data_tuple=()):
         cursor = connection.cursor()
         result = None
         try:
-            cursor.execute(query)
+            cursor.execute(query, data_tuple)
             result = cursor.fetchall()
             return result
         except Error as e:
             print(f"The error '{e}' occurred")
 
+    # esto es nuevo
+    def create_tables():
+        connection = QueriesSQLite.create_connection("pdvDB.sqlite")
+
+        tabla_productos = """
+        CREATE TABLE IF NOT EXISTS productos(
+         codigo TEXT PRIMARY KEY, 
+         nombre TEXT NOT NULL, 
+         precio REAL NOT NULL, 
+         cantidad INTEGER NOT NULL
+        );
+        """
+
+        tabla_usuarios = """
+        CREATE TABLE IF NOT EXISTS usuarios(
+         username TEXT PRIMARY KEY, 
+         nombre TEXT NOT NULL, 
+         password TEXT NOT NULL,
+         tipo TEXT NOT NULL
+        );
+        """
+
+        tabla_ventas = """
+        CREATE TABLE IF NOT EXISTS ventas(
+         id INTEGER PRIMARY KEY, 
+         total REAL NOT NULL, 
+         fecha TIMESTAMP,
+         username TEXT  NOT NULL, 
+         FOREIGN KEY(username) REFERENCES usuarios(username)
+        );
+        """
+
+        tabla_ventas_detalle = """
+        CREATE TABLE IF NOT EXISTS ventas_detalle(
+         id INTEGER PRIMARY KEY, 
+         id_venta TEXT NOT NULL, 
+         precio REAL NOT NULL,
+         producto TEXT NOT NULL,
+         cantidad INTEGER NOT NULL,
+         FOREIGN KEY(id_venta) REFERENCES ventas(id),
+         FOREIGN KEY(producto) REFERENCES productos(codigo)
+        );
+        """
+
+        QueriesSQLite.execute_query(connection, tabla_productos, tuple()) 
+        QueriesSQLite.execute_query(connection, tabla_usuarios, tuple()) 
+        QueriesSQLite.execute_query(connection, tabla_ventas, tuple()) 
+        QueriesSQLite.execute_query(connection, tabla_ventas_detalle, tuple()) 
+
 
 
 if __name__=="__main__":
+    from datetime import datetime, timedelta
     connection = QueriesSQLite.create_connection("pdvDB.sqlite")
 
 
-    # create_product_table = """
-    # CREATE TABLE IF NOT EXISTS productos(
-    #  codigo TEXT PRIMARY KEY, 
-    #  nombre TEXT NOT NULL, 
-    #  precio REAL NOT NULL, 
-    #  cantidad INTEGER NOT NULL
-    # );
-    # """
-    # QueriesSQLite.execute_query(connection, create_product_table, tuple()) 
+    fecha1= datetime.today()-timedelta(days=5)
+    neuva_data=(fecha1, 4)
+    actualizar = """
+    UPDATE
+      ventas
+    SET
+      fecha=?
+    WHERE
+      id = ?
+    """
+
+    QueriesSQLite.execute_query(connection, actualizar, neuva_data)
+
+    select_ventas = "SELECT * from ventas"
+    ventas = QueriesSQLite.execute_read_query(connection, select_ventas)
+    if ventas:
+        for venta in ventas:
+            print("type:", type(venta), "venta:",venta)
 
 
-    # create_user_table = """
-    # CREATE TABLE IF NOT EXISTS usuarios(
-    #  username TEXT PRIMARY KEY, 
-    #  nombre TEXT NOT NULL, 
-    #  password TEXT NOT NULL,
-    #  tipo TEXT NOT NULL
-    # );
-    # """
-    # QueriesSQLite.execute_query(connection, create_user_table, tuple()) 
-
+    select_ventas_detalle = "SELECT * from ventas_detalle"
+    ventas_detalle = QueriesSQLite.execute_read_query(connection, select_ventas_detalle)
+    if ventas_detalle:
+        for venta in ventas_detalle:
+            print("type:", type(venta), "venta:",venta)
 
     # crear_producto = """
     # INSERT INTO
@@ -74,20 +131,20 @@ if __name__=="__main__":
     # """
     # QueriesSQLite.execute_query(connection, crear_producto, tuple()) 
 
-    select_products = "SELECT * from productos"
-    productos = QueriesSQLite.execute_read_query(connection, select_products)
-    for producto in productos:
-        print(producto)
+    # select_products = "SELECT * from productos"
+    # productos = QueriesSQLite.execute_read_query(connection, select_products)
+    # for producto in productos:
+    #     print(producto)
 
 
-    usuario_tuple=('persona1', 'Persona 1', 'abc', 'admin')
-    crear_usuario = """
-    INSERT INTO
-      usuarios (username, nombre, password, tipo)
-    VALUES
-        (?,?,?,?);
-    """
-    QueriesSQLite.execute_query(connection, crear_usuario, usuario_tuple) 
+    # usuario_tuple=('test', 'Persona 1', '123', 'admin')
+    # crear_usuario = """
+    # INSERT INTO
+    #   usuarios (username, nombre, password, tipo)
+    # VALUES
+    #     (?,?,?,?);
+    # """
+    # QueriesSQLite.execute_query(connection, crear_usuario, usuario_tuple) 
 
 
     # select_users = "SELECT * from usuarios"
@@ -118,10 +175,10 @@ if __name__=="__main__":
     # for producto in productos:
     #     print(producto)
 
-    select_users = "SELECT * from usuarios"
-    usuarios = QueriesSQLite.execute_read_query(connection, select_users)
-    for usuario in usuarios:
-        print("type:", type(usuario), "usuario:",usuario)
+    # select_users = "SELECT * from usuarios"
+    # usuarios = QueriesSQLite.execute_read_query(connection, select_users)
+    # for usuario in usuarios:
+    #     print("type:", type(usuario), "usuario:",usuario)
 
     # producto_a_borrar=('888',)
     # borrar = """DELETE from productos where codigo = ?"""
